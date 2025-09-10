@@ -1,0 +1,12 @@
+{
+  "name": "log-monitoring-lseg",
+  "version": "1.0.0",
+  "description": "This is a simple Node.js CLI app that monitors a job log file and reports jobs that exceed duration thresholds.",
+  "main": "monitor.js",
+  "scripts": {
+    "start": "node monitor.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

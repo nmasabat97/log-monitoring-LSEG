@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Log Monitor App</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 2em;
+    }
+
+    input[type="file"] {
+      margin-bottom: 20px;
+    }
+
+    #output {
+      white-space: pre-wrap;
+      font-family: monospace;
+      background: #f4f4f4;
+      padding: 15px;
+      border-radius: 5px;
+    }
+
+    .log-entry {
+      display: inline-flex;
+      align-items: center;
+      vertical-align: middle;
+      margin-bottom: 6px;
+      line-height: 1.2;
+      font-family: monospace;
+      font-size: 14px;
+    }
+
+    .log-entry img {
+      width: 16px;
+      height: 16px;
+      margin-right: 4px;
+      display: inline-block;
+      vertical-align: middle;
+      font-size: 0;
+      line-height: 0;
+    }
+
+    .error {
+      color: red;
+    }
+
+    .warning {
+      color: orange;
+    }
+
+    .ok {
+      color: green;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Upload A Log File for Monitoring</h2>
+  <input type="file" id="fileInput" accept=".log,.csv" />
+  <div id="output"></div>
+
+  <script>
+    document.getElementById('fileInput').addEventListener('change', handleFile);
+
+    function handleFile(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+
+      reader.onload = function(e) {
+        const content = e.target.result;
+        const lines = content.trim().split('\n');
+        const jobMap = {};
+        const outputLines = [];
+
+        lines.forEach((line, index) => {
+          const parts = line.split(',');
+          if (parts.length !== 4) {
+            outputLines.push(`<div class="log-entry error"><img src="assets/error.png" alt="error"/>Could not parse line ${index + 1}: ${line}</div>`);
+            return;
+          }
+
+          const [timeStr, description, action, pid] = parts.map(p => p.trim());
+          const [h, m, s] = timeStr.split(':').map(Number);
+          const date = new Date();
+          date.setHours(h, m, s, 0);
+
+          if (action === 'START') {
+            jobMap[pid] = { start: date, description };
+          } else if (action === 'END') {
+            const job = jobMap[pid];
+            if (!job) {
+              outputLines.push(`<div class="log-entry error"><img src="assets/error.png" alt="error"/>Missing START for PID ${pid}</div>`);
+              return;
+            }
+
+            const durationMs = date - job.start;
+            const durationMin = durationMs / 60000;
+            const formatted = formatDuration(durationMs);
+
+            if (durationMin > 10) {
+              outputLines.push(`<div class="log-entry error"><img src="assets/error.png" alt="error"/>PID ${pid} (${job.description}) took ${formatted} — ERROR</div>`);
+            } else if (durationMin > 5) {
+              outputLines.push(`<div class="log-entry warning"><img src="assets/warning.png" alt="warning"/>PID ${pid} (${job.description}) took ${formatted} — WARNING</div>`);
+            } else {
+              outputLines.push(`<div class="log-entry ok"><img src="assets/ok.png" alt="ok"/>PID ${pid} (${job.description}) took ${formatted} — OK</div>`);
+            }
+
+            delete jobMap[pid];
+          }
+        });
+
+        document.getElementById('output').innerHTML = outputLines.join('\n');
+      };
+
+      reader.readAsText(file);
+    }
+
+    function formatDuration(ms) {
+      const min = Math.floor(ms / 60000);
+      const sec = Math.floor((ms % 60000) / 1000);
+      return `${min}m ${sec}s`;
+    }
+  </script>
+
+</body>
+</html>
